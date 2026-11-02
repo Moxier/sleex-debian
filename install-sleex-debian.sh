@@ -45,11 +45,20 @@ say "apt update"
 apt-get update
 
 have_pkg() { apt-cache show "$1" >/dev/null 2>&1; }
-MISSING=()
-# install what exists, remember what doesn't (names differ between Debian releases/derivatives)
+installed() { dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null | grep -qx installed; }
+MISSING=() CONFLICT=()
+# install what exists, remember what doesn't (names differ between Debian releases/derivatives).
+# Skip any package whose install would remove something already there: derivatives ship their own
+# desktop stack (PikaOS: otter-shell, pika-hyprland-*, tuned-ppd vs power-profiles-daemon).
 apt_some() {
     local ok=() p
-    for p in "$@"; do if have_pkg "$p"; then ok+=("$p"); else MISSING+=("$p"); fi; done
+    for p in "$@"; do
+        if ! have_pkg "$p"; then MISSING+=("$p")
+        elif installed "$p"; then :
+        elif apt-get -s install --no-remove "${APT_EXTRA[@]}" "$p" >/dev/null 2>&1; then ok+=("$p")
+        else CONFLICT+=("$p")
+        fi
+    done
     ((${#ok[@]})) || return 0
     # --no-remove: never let -y silently uninstall the user's packages to resolve a conflict
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-remove "${APT_EXTRA[@]}" "${ok[@]}" ||
@@ -234,6 +243,7 @@ done
 ls "/usr/lib/$MULTIARCH/qt6/qml/Sleex" >/dev/null 2>&1 || { warn "Sleex QML plugins not installed"; fail=1; }
 
 ((${#MISSING[@]})) && warn "Not available in your repos (skipped): ${MISSING[*]}"
+((${#CONFLICT[@]})) && warn "Skipped, would remove your installed packages: ${CONFLICT[*]}"
 ((fail)) && die "Install incomplete - see warnings above"
 say "Done. Log out and pick the 'Sleex' session in your display manager (SDDM/GDM/greetd)."
 say "First start copies configs; wallpaper colours need one wallpaper pick in Sleex settings."
