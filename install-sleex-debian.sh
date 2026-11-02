@@ -161,6 +161,10 @@ local layout, variant, options = kb.XKBLAYOUT, kb.XKBVARIANT, kb.XKBOPTIONS' "$G
 sed -i -E 's/^([[:space:]]*)kb_layout = layout,/&\n\1kb_variant = variant,\n\1kb_options = options,/' "$G"
 grep -q 'kb_options = options' "$G" && ! grep -q vconsole "$G" || die "keyboard patch did not apply to $G"
 
+# Display managers start the session without a login shell, so /etc/profile.d is never read and
+# XDG_DATA_DIRS lacks the Flatpak exports -> Flatpak apps missing from the launcher.
+sed -i '1a for f in /etc/profile.d/*.sh; do [ -r "$f" ] \&\& . "$f"; done' "$S/bin/sleex"
+
 install -Dm755 -t /usr/bin "$S"/bin/*
 cp -r "$S/etc/." /etc/
 rsync -a --delete --exclude='.qmlls.ini' --exclude='.qt/' --exclude='.rcc/' --exclude='.vscode' \
