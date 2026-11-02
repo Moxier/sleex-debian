@@ -166,6 +166,10 @@ cp -r "$S/etc/." /etc/
 rsync -a --delete --exclude='.qmlls.ini' --exclude='.qt/' --exclude='.rcc/' --exclude='.vscode' \
     --exclude='build/' --exclude='CMakeFiles/' --exclude='CMakeCache.txt' --exclude='cmake_install.cmake' \
     --exclude='Makefile' --exclude='qml/' --exclude='.venv/' "$S/share/sleex/" /usr/share/sleex/
+# tuned-ppd (PikaOS) replaces power-profiles-daemon and has no powerprofilesctl; same D-Bus API though
+command -v powerprofilesctl >/dev/null ||
+    grep -rl '"powerprofilesctl", "set", "power-saver"' /usr/share/sleex --include=*.qml | xargs -r sed -i \
+        's|\["powerprofilesctl", "set", "power-saver"\]|["busctl", "--system", "set-property", "net.hadess.PowerProfiles", "/net/hadess/PowerProfiles", "net.hadess.PowerProfiles", "ActiveProfile", "s", "power-saver"]|'
 install -Dm644 -t /usr/share/wayland-sessions "$S"/share/wayland-sessions/*
 cp -r "$BUILD/Sleex/sleex-user-config/src/." /etc/skel/
 install -Dm644 -t /usr/lib/systemd/user \
@@ -246,7 +250,7 @@ fi
 # --- 10. Self-check ---------------------------------------------------------
 say "Checking install"
 fail=0
-for b in sleex Hyprland qs matugen fuzzel cliphist hyprctl; do
+for b in sleex Hyprland qs matugen fuzzel cliphist hyprctl wl-copy wl-paste; do
     command -v "$b" >/dev/null || { warn "missing command: $b"; fail=1; }
 done
 [[ -f /usr/share/sleex/shell.qml ]] || { warn "missing /usr/share/sleex/shell.qml"; fail=1; }
