@@ -122,6 +122,24 @@ cmake -S "$S/share/sleex" -B "$BUILD/sleex-out" -G Ninja -DCMAKE_BUILD_TYPE=Rele
 cmake --build "$BUILD/sleex-out"
 cmake --install "$BUILD/sleex-out" --prefix /
 
+# Upstream takes the XKB layout from KEYMAP in /etc/vconsole.conf (Arch); on Debian that file
+# is often absent or holds a console map path (PikaOS: /etc/pika-console.map) -> "invalid keyboard layout".
+# Read Debian's /etc/default/keyboard instead (layout, variant, options e.g. us,th + grp:alt_shift_toggle).
+G="$S/etc/sleex/hyprland/general.lua"
+sed -i '1,/^end$/c\
+local kb = { XKBLAYOUT = "us", XKBVARIANT = "", XKBOPTIONS = "" }\
+local file = io.open("/etc/default/keyboard", "r")\
+if file then\
+    for line in file:lines() do\
+        local k, v = line:match([[^%s*(XKB%u+)%s*=%s*"?([^"]*)"?%s*$]])\
+        if k and kb[k] ~= nil and v ~= "" then kb[k] = v end\
+    end\
+    file:close()\
+end\
+local layout, variant, options = kb.XKBLAYOUT, kb.XKBVARIANT, kb.XKBOPTIONS' "$G"
+sed -i -E 's/^([[:space:]]*)kb_layout = layout,/&\n\1kb_variant = variant,\n\1kb_options = options,/' "$G"
+grep -q 'kb_options = options' "$G" && ! grep -q vconsole "$G" || die "keyboard patch did not apply to $G"
+
 install -Dm755 -t /usr/bin "$S"/bin/*
 cp -r "$S/etc/." /etc/
 rsync -a --delete --exclude='.qmlls.ini' --exclude='.qt/' --exclude='.rcc/' --exclude='.vscode' \
