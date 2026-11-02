@@ -96,7 +96,7 @@ apt_some \
     cava pavucontrol-qt wireplumber pipewire-pulse libdbusmenu-gtk3-4 playerctl pulseaudio-utils easyeffects \
     geoclue-2.0 brightnessctl ddcutil \
     axel bc coreutils cliphist curl rsync wget ripgrep jq xdg-user-dirs foot power-profiles-daemon \
-    qt-style-kvantum inotify-tools lm-sensors qt5ct qt6ct sqlite3 dbus-bin libnotify-bin \
+    qt-style-kvantum qt6-style-kvantum inotify-tools lm-sensors qt5ct qt6ct sqlite3 dbus-bin libnotify-bin \
     eza fish fontconfig starship papirus-icon-theme breeze-icon-theme \
     fonts-jetbrains-mono fonts-materialdesignicons-webfont fonts-noto-color-emoji \
     wl-clipboard xdg-desktop-portal xdg-desktop-portal-gtk \
