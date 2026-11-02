@@ -51,15 +51,25 @@ MISSING=() CONFLICT=()
 # Skip any package whose install would remove something already there: derivatives ship their own
 # desktop stack (PikaOS: otter-shell, pika-hyprland-*, tuned-ppd vs power-profiles-daemon).
 apt_some() {
-    local ok=() p
+    local want=() ok=() p i=0
     for p in "$@"; do
         if ! have_pkg "$p"; then MISSING+=("$p")
-        elif installed "$p"; then :
-        elif apt-get -s install --no-remove "${APT_EXTRA[@]}" "$p" >/dev/null 2>&1; then ok+=("$p")
-        else CONFLICT+=("$p")
-        fi
+        elif ! installed "$p"; then want+=("$p"); fi
     done
-    ((${#ok[@]})) || return 0
+    ((${#want[@]})) || return 0
+    # fast path: one simulation for the whole batch; only hunt per package if it would remove something
+    if apt-get -s install --no-remove "${APT_EXTRA[@]}" "${want[@]}" >/dev/null 2>&1; then
+        ok=("${want[@]}")
+    else
+        say "Some packages conflict with what's installed, checking one by one (a few minutes)..."
+        for p in "${want[@]}"; do
+            printf '\r  [%d/%d] %-40s' $((++i)) ${#want[@]} "$p"
+            if apt-get -s install --no-remove "${APT_EXTRA[@]}" "$p" >/dev/null 2>&1; then ok+=("$p")
+            else CONFLICT+=("$p"); fi
+        done
+        echo
+        ((${#ok[@]})) || return 0
+    fi
     # --no-remove: never let -y silently uninstall the user's packages to resolve a conflict
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-remove "${APT_EXTRA[@]}" "${ok[@]}" ||
         die "apt refused (it would have to remove installed packages, see above). Nothing was removed."
