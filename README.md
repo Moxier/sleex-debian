@@ -1,5 +1,7 @@
 # Sleex on Debian
 
+# Attention : This is for fun, there is no guaranteed it will work on your device and there is NO UNINSTALL option yet, PLEASE USE AT YOUR OWN RISK
+
 สคริปต์ติดตั้ง [Sleex](https://github.com/AxOS-project/Sleex) (Desktop Environment ของ AxOS ที่ใช้ Hyprland + Quickshell) บน Debian และ distro ที่ใช้ Debian เป็นฐาน
 
 Installer for the [Sleex](https://github.com/AxOS-project/Sleex) desktop (AxOS, Hyprland + Quickshell) on Debian-based distros.
