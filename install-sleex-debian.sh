@@ -50,8 +50,10 @@ MISSING=()
 apt_some() {
     local ok=() p
     for p in "$@"; do if have_pkg "$p"; then ok+=("$p"); else MISSING+=("$p"); fi; done
-    ((${#ok[@]})) && DEBIAN_FRONTEND=noninteractive apt-get install -y "${APT_EXTRA[@]}" "${ok[@]}"
-    return 0
+    ((${#ok[@]})) || return 0
+    # --no-remove: never let -y silently uninstall the user's packages to resolve a conflict
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-remove "${APT_EXTRA[@]}" "${ok[@]}" ||
+        die "apt refused (it would have to remove installed packages, see above). Nothing was removed."
 }
 
 # --- 2. Version gates -------------------------------------------------------
