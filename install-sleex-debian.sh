@@ -175,6 +175,12 @@ command -v powerprofilesctl >/dev/null ||
 # so palette/static colour changes died silently
 grep -rl 'wallpaperSwitchScriptPath' /usr/share/sleex --include=*.qml |
     xargs -r sed -i '/wallpaperSwitchScriptPath/s/\["sh",/["bash",/'
+# matugen >= 3 refuses to pick a source colour without a terminal when an image has several
+# candidates, so colors.json (what the shell reads) never updated; older matugen defaulted to 0
+sed -i 's/matugen_args=(image "\$imgpath")/matugen_args=(image "$imgpath" --source-color-index 0)/' \
+    /usr/share/sleex/scripts/colors/switchwall.sh
+grep -q 'source-color-index' /usr/share/sleex/scripts/colors/switchwall.sh ||
+    warn "Upstream changed switchwall.sh - shell colours may not follow the wallpaper"
 # Wallpaper selector: rescan when the folder changes, expand "~", allow spaces (see patches/Wallpapers.qml)
 W=/usr/share/sleex/services/Wallpapers.qml
 if grep -q 'wallpaperSelectorPath.lenght' "$W"; then
