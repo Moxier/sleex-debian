@@ -181,6 +181,10 @@ sed -i 's/matugen_args=(image "\$imgpath")/matugen_args=(image "$imgpath" --sour
     /usr/share/sleex/scripts/colors/switchwall.sh
 grep -q 'source-color-index' /usr/share/sleex/scripts/colors/switchwall.sh ||
     warn "Upstream changed switchwall.sh - shell colours may not follow the wallpaper"
+# About page asks pacman/flux for the version; no package here, so read a file we write instead
+echo "sleex $(sed -n 's/^pkgver="\(.*\)"/\1/p' "$BUILD/Sleex/PKGBUILD")+git.$(git -C "$BUILD/Sleex" rev-parse --short HEAD)" \
+    > /usr/share/sleex/VERSION
+sed -i '/pacman -Q sleex 2>\/dev\/null/s#"\]$# || cat /usr/share/sleex/VERSION"]#' /usr/share/sleex/services/SystemInfo.qml
 # Wallpaper selector: rescan when the folder changes, expand "~", allow spaces (see patches/Wallpapers.qml)
 W=/usr/share/sleex/services/Wallpapers.qml
 if grep -q 'wallpaperSelectorPath.lenght' "$W"; then
