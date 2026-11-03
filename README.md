@@ -1,6 +1,8 @@
 # Sleex on Debian
 
-# Attention : This is for fun, there is no guaranteed it will work on your device and there is NO UNINSTALL option yet, PLEASE USE AT YOUR OWN RISK
+<h3>Attention : This is for fun, there is no guaranteed it will work on your device and there is NO UNINSTALL option yet, PLEASE USE AT YOUR OWN RISK</h3>
+
+<img alt="image" src="https://github.com/Moxier/sleex-debian/blob/main/cover.png?raw=true" />
 
 **English** | [ภาษาไทย](README_TH.md)
 
