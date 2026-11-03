@@ -48,26 +48,10 @@ sudo ./install-sleex-debian.sh 2>&1 | tee install.log
 ```
 
 - **Overwritten:** Sleex's own files in `/usr/share/sleex`, `/etc/sleex` and `/usr/bin/sleex`
-- **Kept:** everything in your home, including `~/.config/sleex/custom/*.lua`, wallpapers and colours
+- **Kept:** everything in your home, including `~/.config/sleex/custom/*.lua` (your own Hyprland settings, e.g. keyboard layout), wallpapers and colours
 - Hyprland, Quickshell and other packages update through apt as usual
 
 If upstream Sleex changes the code a patch targets, that patch may stop applying. The keyboard patch stops the script with an error; the others skip silently and only that feature stops working.
-
-## Thai keyboard (Alt+Space)
-
-Put this in `~/.config/sleex/custom/general.lua` (loaded after the main config and never overwritten by updates):
-
-```lua
-hl.config({
-    input = {
-        kb_layout = "us,th",
-        kb_variant = ",",
-        kb_options = "grp:alt_space_toggle",
-    },
-})
-```
-
-Then log out and back in, or run `hyprctl reload`. Without this, Sleex reads the layout from `/etc/default/keyboard`. Swap `th` for any other XKB layout code.
 
 ## What the script does
 
@@ -85,6 +69,10 @@ Then log out and back in, or run `hyprctl reload`. Without this, Sleex reads the
    - A separate venv for `materialyoucolor` (no system-wide pip)
    - The power saver button uses `busctl` instead of `powerprofilesctl` when the system uses `tuned-ppd`
    - Runs `Hyprland` directly if `start-hyprland` is missing
+   - Colour scripts are run with `bash` (Debian's `sh` is dash), so changing the Material Palette works
+   - matugen gets `--source-color-index 0`, so shell colours follow the wallpaper (newer matugen refuses to pick a colour without a terminal)
+   - Wallpaper picker rescans when its folder changes, and accepts `~` and spaces in the path
+   - Settings › About shows the Sleex version (written to `/usr/share/sleex/VERSION`) and the distro buttons use the links from `/etc/os-release`
 6. Copies the default config into the sudo user's home **without overwriting existing files**
 
 ## Troubleshooting

@@ -83,6 +83,10 @@ hl.config({
    - venv แยกสำหรับ `materialyoucolor` (ไม่ pip ลงระบบ)
    - ปุ่ม power saver ใช้ `busctl` แทน `powerprofilesctl` ถ้าเครื่องใช้ `tuned-ppd`
    - ใช้ `Hyprland` ตรงๆ ถ้าไม่มี `start-hyprland`
+   - รันสคริปต์เปลี่ยนสีด้วย `bash` (`sh` บน Debian คือ dash) ทำให้เปลี่ยน Material Palette ได้
+   - ใส่ `--source-color-index 0` ให้ matugen สีของ shell จึงเปลี่ยนตามวอลเปเปอร์ (matugen รุ่นใหม่ไม่ยอมเลือกสีเองถ้าไม่มี terminal)
+   - ตัวเลือกวอลเปเปอร์สแกนใหม่เมื่อเปลี่ยนโฟลเดอร์ และรองรับ `~` กับเว้นวรรคใน path
+   - Settings › About แสดงเวอร์ชันของ Sleex (เขียนไว้ที่ `/usr/share/sleex/VERSION`) และปุ่มของ distro ใช้ลิงก์จาก `/etc/os-release`
 6. คัดลอก config เริ่มต้นให้ผู้ใช้ที่รัน sudo **โดยไม่ทับไฟล์เดิม**
 
 ## ปัญหาที่เจอบ่อย
