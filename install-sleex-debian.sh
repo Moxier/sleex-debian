@@ -171,6 +171,10 @@ rsync -a --delete --exclude='.qmlls.ini' --exclude='.qt/' --exclude='.rcc/' --ex
 command -v powerprofilesctl >/dev/null ||
     grep -rl '"powerprofilesctl", "set", "power-saver"' /usr/share/sleex --include=*.qml | xargs -r sed -i \
         's|\["powerprofilesctl", "set", "power-saver"\]|["busctl", "--system", "set-property", "net.hadess.PowerProfiles", "/net/hadess/PowerProfiles", "net.hadess.PowerProfiles", "ActiveProfile", "s", "power-saver"]|'
+# switchwall.sh is a bash script but Settings runs it with "sh" - bash on Arch, dash on Debian,
+# so palette/static colour changes died silently
+grep -rl 'wallpaperSwitchScriptPath' /usr/share/sleex --include=*.qml |
+    xargs -r sed -i '/wallpaperSwitchScriptPath/s/\["sh",/["bash",/'
 # Wallpaper selector: rescan when the folder changes, expand "~", allow spaces (see patches/Wallpapers.qml)
 W=/usr/share/sleex/services/Wallpapers.qml
 if grep -q 'wallpaperSelectorPath.lenght' "$W"; then
