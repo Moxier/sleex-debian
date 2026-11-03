@@ -1,6 +1,6 @@
 # Sleex on Debian
 
-<h3>Attention : This is for fun, there is no guaranteed it will work on your device and there is NO UNINSTALL option yet, PLEASE USE AT YOUR OWN RISK</h3>
+<h3>Attention : This is for fun, there is no guaranteed it will work on your device, PLEASE USE AT YOUR OWN RISK</h3>
 
 <img alt="image" src="https://github.com/Moxier/sleex-debian/blob/main/cover.png?raw=true" />
 
@@ -53,6 +53,24 @@ sudo ./install-sleex-debian.sh 2>&1 | tee install.log
 
 If upstream Sleex changes the code a patch targets, that patch may stop applying. The keyboard patch stops the script with an error; the others skip silently and only that feature stops working.
 
+## Uninstalling
+
+```bash
+cd ~/sleex-debian
+sudo ./uninstall-sleex-debian.sh
+```
+
+Log out of Sleex first. The installer keeps a record in `/var/lib/sleex-debian` of every file it wrote, the original of every file it replaced, and the packages it installed. The uninstaller uses that record to:
+
+- remove the Sleex files and put the replaced originals back (e.g. `/etc/skel`, `/etc/xdg/mimeapps.list`)
+- remove you from the `input` group if the installer added you
+- mark the installed packages as no longer wanted and run `apt autoremove`, which only removes what nothing else needs. apt shows the list first — answer **no** to keep them all
+
+Your home folder is left alone (`~/.config/sleex`, `~/.local/state/sleex`, the Sleex configs copied into `~/.config`). Delete those by hand if you want.
+
+> [!IMPORTANT]
+> Installed before the uninstaller existed (before November 3, 2026)? There is no record yet: run the current `install-sleex-debian.sh` once, then uninstall. The originals that first install replaced (`/etc/skel`, `/etc/xdg/mimeapps.list`) can't be restored, and packages from that first run aren't in the record.
+
 ## What the script does
 
 1. Checks the Hyprland / Quickshell / Qt versions first and stops if they are too old
@@ -91,7 +109,7 @@ sed -i 's/^icon_theme=.*/icon_theme=Papirus-Dark/; s/^style=.*/style=kvantum/' ~
 - If the Sleex plugins use Qt 6.9-only APIs, they won't build on Debian 13 (testing/sid are fine)
 - The Lua config API in Hyprland 0.55 (backports) may differ from the version AxOS targets
 - `hypnos` may fail to build if Debian's Rust is too old → idle/auto-lock won't work (the script warns and continues)
-- Not included: Howdy (face unlock), Mission Center, breeze-plus, an uninstall script
+- Not included: Howdy (face unlock), Mission Center, breeze-plus
 
 ## License
 

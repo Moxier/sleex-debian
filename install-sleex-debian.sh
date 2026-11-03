@@ -23,6 +23,32 @@ die()  { printf '\e[1;31mxx\e[0m %s\n' "$*" >&2; exit 1; }
 
 [[ $EUID -eq 0 ]] || die "Run with sudo: sudo $0"
 [[ $(dpkg --print-architecture) == amd64 ]] || die "Sleex supports amd64 (x86_64) only"
+
+# Install record for uninstall-sleex-debian.sh: files = every path we wrote, backup/ = originals we
+# replaced, apt = packages we installed, input-group = users we added to "input"
+STATE=${SLEEX_STATE:-/var/lib/sleex-debian}
+LEGACY=0; [[ ! -s $STATE/files && -d /usr/share/sleex ]] && LEGACY=1  # installed before records: nothing original left to back up
+mkdir -p "$STATE/backup"; touch "$STATE/files" "$STATE/apt"
+listed() { grep -qxF -- "$1" "$STATE/files"; }
+# call before writing a path: keep the original once and record the path
+claim() {
+    local f
+    for f in "$@"; do
+        listed "$f" && continue
+        if ((!LEGACY)) && [[ -e $f || -L $f ]]; then
+            mkdir -p "$STATE/backup${f%/*}"; cp -a -- "$f" "$STATE/backup$f"
+        fi
+        printf '%s\n' "$f" >> "$STATE/files"
+    done
+}
+# paths that are Sleex's alone (whole dirs, build outputs): record only
+own() { local f; for f in "$@"; do listed "$f" || printf '%s\n' "$f" >> "$STATE/files"; done; }
+# copy a tree into DEST, claiming every file it writes
+put_tree() {
+    local f
+    while IFS= read -r -d '' f; do claim "$2/${f#./}"; done < <(cd "$1" && find . ! -type d -print0)
+    cp -a "$1/." "$2/"
+}
 . /etc/os-release
 [[ $ID == debian || " ${ID_LIKE:-} " == *" debian "* ]] || die "Not a Debian-based distro ($ID)"
 MULTIARCH=$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu)
@@ -32,6 +58,7 @@ HYPR_TARGET=()
 if [[ ${VERSION_CODENAME:-} == trixie ]]; then
     if ! grep -rqs 'trixie-backports' /etc/apt/sources.list /etc/apt/sources.list.d/; then
         say "Enabling trixie-backports"
+        claim /etc/apt/sources.list.d/trixie-backports.sources
         cat > /etc/apt/sources.list.d/trixie-backports.sources <<'EOF'
 Types: deb
 URIs: http://deb.debian.org/debian
@@ -74,6 +101,7 @@ apt_some() {
     # --no-remove: never let -y silently uninstall the user's packages to resolve a conflict
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-remove "${APT_EXTRA[@]}" "${ok[@]}" ||
         die "apt refused (it would have to remove installed packages, see above). Nothing was removed."
+    printf '%s\n' "${ok[@]}" >> "$STATE/apt"
 }
 
 # --- 2. Version gates -------------------------------------------------------
@@ -143,6 +171,7 @@ cmake -S "$S/share/sleex" -B "$BUILD/sleex-out" -G Ninja -DCMAKE_BUILD_TYPE=Rele
     -DDISTRIBUTOR=Debian -DINSTALL_QMLDIR="usr/lib/$MULTIARCH/qt6/qml"
 cmake --build "$BUILD/sleex-out"
 cmake --install "$BUILD/sleex-out" --prefix /
+own $(<"$BUILD/sleex-out/install_manifest.txt")
 
 # Upstream takes the XKB layout from KEYMAP in /etc/vconsole.conf (Arch); on Debian that file
 # is often absent or holds a console map path (PikaOS: /etc/pika-console.map) -> "invalid keyboard layout".
@@ -162,8 +191,10 @@ local layout, variant, options = kb.XKBLAYOUT, kb.XKBVARIANT, kb.XKBOPTIONS' "$G
 sed -i -E 's/^([[:space:]]*)kb_layout = layout,/&\n\1kb_variant = variant,\n\1kb_options = options,/' "$G"
 grep -q 'kb_options = options' "$G" && ! grep -q vconsole "$G" || die "keyboard patch did not apply to $G"
 
+for b in "$S"/bin/*; do claim "/usr/bin/${b##*/}"; done
 install -Dm755 -t /usr/bin "$S"/bin/*
-cp -r "$S/etc/." /etc/
+put_tree "$S/etc" /etc
+own /etc/sleex /usr/share/sleex
 rsync -a --delete --exclude='.qmlls.ini' --exclude='.qt/' --exclude='.rcc/' --exclude='.vscode' \
     --exclude='build/' --exclude='CMakeFiles/' --exclude='CMakeCache.txt' --exclude='cmake_install.cmake' \
     --exclude='Makefile' --exclude='qml/' --exclude='.venv/' "$S/share/sleex/" /usr/share/sleex/
@@ -203,8 +234,10 @@ if grep -q 'wallpaperSelectorPath.lenght' "$W"; then
 else
     warn "Upstream changed Wallpapers.qml - wallpaper folder fix not applied"
 fi
+for s in "$S"/share/wayland-sessions/*; do claim "/usr/share/wayland-sessions/${s##*/}"; done
 install -Dm644 -t /usr/share/wayland-sessions "$S"/share/wayland-sessions/*
-cp -r "$BUILD/Sleex/sleex-user-config/src/." /etc/skel/
+put_tree "$BUILD/Sleex/sleex-user-config/src" /etc/skel
+claim /usr/lib/systemd/user/sleex-lock-listener.service
 install -Dm644 -t /usr/lib/systemd/user \
     "$BUILD/Sleex/sleex-user-config/src/.config/systemd/user/sleex-lock-listener.service"
 
@@ -226,10 +259,12 @@ done
 cmake_project() {
     say "Building $1"
     cmake -S "$BUILD/$1/src" -B "$BUILD/$1-out" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr &&
-        cmake --build "$BUILD/$1-out" && cmake --install "$BUILD/$1-out"
+        cmake --build "$BUILD/$1-out" && cmake --install "$BUILD/$1-out" &&
+        own $(<"$BUILD/$1-out/install_manifest.txt")
 }
 cmake_project sleex-ui-kit   # Sleex QML imports SleexUiKit, so this one must succeed
 cmake_project sleex-welcome-screen || warn "welcome screen failed to build (first-run tutorial only)"
+own /usr/share/pixmaps/sleex /usr/share/backgrounds/sleex
 install -d /usr/share/pixmaps/sleex /usr/share/backgrounds/sleex
 cp -r "$BUILD/sleex-artworks/src/logo/." /usr/share/pixmaps/sleex/
 cp -r "$BUILD/sleex-artworks/src/wallpapers/." /usr/share/backgrounds/sleex/
@@ -237,6 +272,7 @@ cp -r "$BUILD/sleex-artworks/src/wallpapers/." /usr/share/backgrounds/sleex/
 say "Building hypnos (idle daemon)"
 # upstream pins nightly via rust-toolchain.toml; Debian's cargo ignores it
 if (cd "$BUILD/hypnos/src" && RUSTUP_TOOLCHAIN=stable cargo build --release --locked); then
+    claim /usr/bin/hypnos
     install -Dm755 "$BUILD/hypnos/src/target/release/hypnos" /usr/bin/hypnos
 else
     warn "hypnos failed to build (Debian's Rust may be too old) - idle/auto-lock settings won't work"
@@ -247,15 +283,22 @@ say "Downloading matugen, cursor, GTK theme, fonts, helper scripts"
 T=$BUILD/dl; mkdir -p "$T"
 fetch "$GH/InioX/matugen/releases/download/v$MATUGEN_VER/matugen-$MATUGEN_VER-x86_64.tar.gz" "$T/matugen.tgz"
 mkdir -p "$T/matugen" && tar -xzf "$T/matugen.tgz" -C "$T/matugen"
+claim /usr/bin/matugen
 install -Dm755 "$(find "$T/matugen" -type f -name matugen | head -1)" /usr/bin/matugen
 
-fetch "$GH/ful1e5/Bibata_Cursor/releases/download/v$BIBATA_VER/Bibata-Modern-Classic.tar.xz" "$T/bibata.txz"
-tar -xJf "$T/bibata.txz" -C /usr/share/icons/
+# cursor/theme: keep whatever the system already has (e.g. from apt), only add when missing
+if [[ ! -e /usr/share/icons/Bibata-Modern-Classic ]] || listed /usr/share/icons/Bibata-Modern-Classic; then
+    fetch "$GH/ful1e5/Bibata_Cursor/releases/download/v$BIBATA_VER/Bibata-Modern-Classic.tar.xz" "$T/bibata.txz"
+    own /usr/share/icons/Bibata-Modern-Classic
+    tar -xJf "$T/bibata.txz" -C /usr/share/icons/
+fi
+if [[ ! -e /usr/share/themes/adw-gtk3 ]] || listed /usr/share/themes/adw-gtk3; then
+    fetch "$GH/lassekongo83/adw-gtk3/releases/download/v$ADWGTK_VER/adw-gtk3v$ADWGTK_VER.tar.xz" "$T/adw.txz"
+    own /usr/share/themes/adw-gtk3 /usr/share/themes/adw-gtk3-dark
+    tar -xJf "$T/adw.txz" -C /usr/share/themes/
+fi
 
-fetch "$GH/lassekongo83/adw-gtk3/releases/download/v$ADWGTK_VER/adw-gtk3v$ADWGTK_VER.tar.xz" "$T/adw.txz"
-tar -xJf "$T/adw.txz" -C /usr/share/themes/
-
-F=/usr/local/share/fonts/sleex; mkdir -p "$F"
+F=/usr/local/share/fonts/sleex; own "$F"; mkdir -p "$F"
 fetch "$GH/ryanoasis/nerd-fonts/releases/download/v$NERD_VER/JetBrainsMono.tar.xz" "$T/jbm.txz"
 tar -xJf "$T/jbm.txz" -C "$F" --wildcards '*.ttf'
 fetch "$GH/google/material-design-icons/raw/master/variablefont/MaterialSymbolsRounded%5BFILL,GRAD,opsz,wght%5D.ttf" "$F/MaterialSymbolsRounded.ttf"
@@ -267,9 +310,11 @@ fc-cache -f >/dev/null
 
 command -v hyprshot >/dev/null || {
     fetch "$GH/Gustash/Hyprshot/raw/$HYPRSHOT_VER/hyprshot" "$T/hyprshot"
+    claim /usr/bin/hyprshot
     install -Dm755 "$T/hyprshot" /usr/bin/hyprshot; }
 [[ -x /usr/bin/papirus-folders ]] || {
     fetch "$GH/PapirusDevelopmentTeam/papirus-folders/raw/v$PAPIRUS_FOLDERS_VER/papirus-folders" "$T/pf"
+    claim /usr/bin/papirus-folders
     install -Dm755 "$T/pf" /usr/bin/papirus-folders; }
 
 # --- 9. Existing user: give them the skel config, never overwrite ----------
@@ -277,7 +322,10 @@ if [[ -n ${SUDO_USER:-} && $SUDO_USER != root ]]; then
     H=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     say "Copying default Sleex config into $H (existing files kept)"
     sudo -u "$SUDO_USER" cp -rn /etc/skel/.config /etc/skel/.local "$H/" 2>/dev/null || true
-    usermod -aG input "$SUDO_USER"   # ydotool / hypnos read input devices
+    if ! id -nG "$SUDO_USER" | grep -qw input; then
+        usermod -aG input "$SUDO_USER"   # ydotool / hypnos read input devices
+        echo "$SUDO_USER" >> "$STATE/input-group"
+    fi
 fi
 
 # --- 10. Self-check ---------------------------------------------------------
