@@ -6,6 +6,7 @@
 #   Debian testing / sid -> straight from the archive
 set -euo pipefail
 
+HERE=$(cd "$(dirname "$0")" && pwd)
 BUILD=/var/tmp/sleex-build
 GH=https://github.com
 AXOS=$GH/AxOS-project
@@ -170,6 +171,16 @@ rsync -a --delete --exclude='.qmlls.ini' --exclude='.qt/' --exclude='.rcc/' --ex
 command -v powerprofilesctl >/dev/null ||
     grep -rl '"powerprofilesctl", "set", "power-saver"' /usr/share/sleex --include=*.qml | xargs -r sed -i \
         's|\["powerprofilesctl", "set", "power-saver"\]|["busctl", "--system", "set-property", "net.hadess.PowerProfiles", "/net/hadess/PowerProfiles", "net.hadess.PowerProfiles", "ActiveProfile", "s", "power-saver"]|'
+# Wallpaper selector: rescan when the folder changes, expand "~", allow spaces (see patches/Wallpapers.qml)
+W=/usr/share/sleex/services/Wallpapers.qml
+if grep -q 'wallpaperSelectorPath.lenght' "$W"; then
+    install -m644 "$HERE/patches/Wallpapers.qml" "$W"
+    sed -i -e 's|Config.options.background.wallpaperSelectorPath + "/" + modelData|Wallpapers.wallpaperPath + "/" + modelData|g' \
+        -e 's|: (Wallpapers.wallpaperPath + "/" + modelData)|: ("file://" + Wallpapers.wallpaperPath + "/" + modelData)|' \
+        /usr/share/sleex/modules/wallpaperSelector/WallpaperSelector.qml
+else
+    warn "Upstream changed Wallpapers.qml - wallpaper folder fix not applied"
+fi
 install -Dm644 -t /usr/share/wayland-sessions "$S"/share/wayland-sessions/*
 cp -r "$BUILD/Sleex/sleex-user-config/src/." /etc/skel/
 install -Dm644 -t /usr/lib/systemd/user \
