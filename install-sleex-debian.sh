@@ -185,6 +185,14 @@ grep -q 'source-color-index' /usr/share/sleex/scripts/colors/switchwall.sh ||
 echo "sleex $(sed -n 's/^pkgver="\(.*\)"/\1/p' "$BUILD/Sleex/PKGBUILD")+git.$(git -C "$BUILD/Sleex" rev-parse --short HEAD)" \
     > /usr/share/sleex/VERSION
 sed -i '/pacman -Q sleex 2>\/dev\/null/s#"\]$# || cat /usr/share/sleex/VERSION"]#' /usr/share/sleex/services/SystemInfo.qml
+# About > Distro buttons are hard-coded to AxOS: use the URLs from /etc/os-release (already parsed
+# by SystemInfo), keep AxOS as fallback, and only show Donate on AxOS
+sed -i -e 's|openUrlExternally("https://www.axos-project.com")|openUrlExternally(SystemInfo.homeUrl \|\| "https://www.axos-project.com")|' \
+    -e 's|openUrlExternally("https://www.axos-project.com/docs")|openUrlExternally(SystemInfo.documentationUrl \|\| "https://www.axos-project.com/docs")|' \
+    -e 's|openUrlExternally("https://discord.axos-project.com")|openUrlExternally(SystemInfo.supportUrl \|\| "https://discord.axos-project.com")|' \
+    -e 's|openUrlExternally("https://github.com/axos-project")|openUrlExternally(SystemInfo.bugReportUrl \|\| "https://github.com/axos-project")|' \
+    -e '/mainText: "Donate"/a\                visible: SystemInfo.distroName === "AxOS"' \
+    /usr/share/sleex/modules/settings/About.qml
 # Wallpaper selector: rescan when the folder changes, expand "~", allow spaces (see patches/Wallpapers.qml)
 W=/usr/share/sleex/services/Wallpapers.qml
 if grep -q 'wallpaperSelectorPath.lenght' "$W"; then
