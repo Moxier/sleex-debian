@@ -283,8 +283,9 @@ say "Downloading matugen, cursor, GTK theme, fonts, helper scripts"
 T=$BUILD/dl; mkdir -p "$T"
 fetch "$GH/InioX/matugen/releases/download/v$MATUGEN_VER/matugen-$MATUGEN_VER-x86_64.tar.gz" "$T/matugen.tgz"
 mkdir -p "$T/matugen" && tar -xzf "$T/matugen.tgz" -C "$T/matugen"
-claim /usr/bin/matugen
-install -Dm755 "$(find "$T/matugen" -type f -name matugen | head -1)" /usr/bin/matugen
+# /usr/local/bin: never overwrite a distro matugen package (apt would later delete our binary with it)
+claim /usr/local/bin/matugen
+install -Dm755 "$(find "$T/matugen" -type f -name matugen | head -1)" /usr/local/bin/matugen
 
 # cursor/theme: keep whatever the system already has (e.g. from apt), only add when missing
 if [[ ! -e /usr/share/icons/Bibata-Modern-Classic ]] || listed /usr/share/icons/Bibata-Modern-Classic; then
